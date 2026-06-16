@@ -1,0 +1,68 @@
+{
+  "GPWR_Preset_01": {
+    "state": {
+      "systems": {
+        "atmo": true,
+        "clouds": false,
+        "volFog": true,
+        "nanite": true,
+        "vsm": true,
+        "distanceFields": true,
+        "reflections": true,
+        "rtShadows": false,
+        "ao": true,
+        "translucency": true,
+        "sss": false,
+        "bloom": true,
+        "dof": false,
+        "motionBlur": true,
+        "lensFlare": false,
+        "hair": false,
+        "autoExposure": true
+      },
+      "content": {
+        "static": true,
+        "crowd": true,
+        "characters": true,
+        "niagara": false,
+        "foliage": false
+      },
+      "giMode": "lumen-sw",
+      "sceneScale": 88,
+      "quality": 85,
+      "memBudget": 14000,
+      "aa": "tsr",
+      "screenPct": 100,
+      "cinematic": true,
+      "shadow": {
+        "detail": 21,
+        "softness": 12,
+        "distance": 62
+      },
+      "lumen": {
+        "gather": 20,
+        "reflection": 6,
+        "stability": 74
+      },
+      "voxel": {
+        "resolution": 53,
+        "range": 87
+      },
+      "adv": {
+        "r.Shadow.Virtual.MaxPhysicalPages": "8192",
+        "r.Shadow.Virtual.ResolutionLodBiasDirectional": "0",
+        "r.Shadow.Virtual.SMRT.RayCountDirectional": "4",
+        "r.Shadow.Virtual.SMRT.RayCountLocal": "4",
+        "r.Lumen.ScreenProbeGather.DownsampleFactor": "8",
+        "r.Lumen.Reflections.DownsampleFactor": "2",
+        "r.LumenScene.SurfaceCache.CardMaxResolution": "512",
+        "r.Lumen.ScreenProbeGather.Temporal.MaxFramesAccumulated": "4",
+        "r.Streaming.PoolSize": "4096",
+        "r.Lumen.TranslucencyReflections.FrontLayer.Enable": "0"
+      },
+      "pins": []
+    },
+    "notes": "",
+    "ts": 1781651795966
+  }
+}

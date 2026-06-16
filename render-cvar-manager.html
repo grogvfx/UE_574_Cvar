@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unreal Render — CVar Manager (5.7.4)</title>
+<style>
+  :root{
+    --bg:#0e0e10; --bg2:#141416; --card:#191a1d; --card2:#1f2024;
+    --line:#2a2b30; --line2:#34353b;
+    --text:#e9e7e2; --muted:#74757b; --muted2:#9a9ba1;
+    --accent:#e8a23d; --accent2:#f4be63; --accent-soft:rgba(232,162,61,.13); --accent-bd:rgba(232,162,61,.4);
+    --good:#54b56a; --warn:#e0a020; --bad:#e25555;
+    --proj:#c98be0; --proj-soft:rgba(201,139,224,.12); --proj-bd:rgba(201,139,224,.4);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%}
+  body{background:var(--bg);color:var(--text);font:13px/1.5 "Inter","Segoe UI",Roboto,system-ui,sans-serif}
+  /* scrollbars */
+  *{scrollbar-width:thin;scrollbar-color:#2c2d33 var(--bg2)}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:var(--bg2)}
+  ::-webkit-scrollbar-thumb{background:#2c2d33;border-radius:6px;border:2px solid var(--bg2)}
+  ::-webkit-scrollbar-thumb:hover{background:#3a3b42}
+  ::-webkit-scrollbar-corner{background:var(--bg2)}
+
+  h1{font:700 19px/1.1 Georgia,"Times New Roman",serif;color:var(--accent);letter-spacing:.3px;margin:0}
+  h2{font-size:11px;font-weight:700;color:var(--accent2);text-transform:uppercase;letter-spacing:1.1px;margin:0 0 11px}
+  h3{font-size:10px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:1px;margin:0 0 7px}
+  a{color:var(--accent)}
+
+  header{position:sticky;top:0;z-index:50;background:rgba(14,14,16,.92);backdrop-filter:blur(8px);
+    padding:11px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px}
+  header .sub{color:var(--muted);font-size:11px}
+  .tabs{display:flex;gap:6px;margin-left:auto}
+  .tab{background:transparent;border:1px solid var(--line);color:var(--muted2);padding:6px 15px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px}
+  .tab:hover{border-color:var(--line2);color:var(--text)}
+  .tab.active{background:var(--accent-soft);color:var(--accent2);border-color:var(--accent-bd)}
+
+  .wrap{display:grid;grid-template-columns:430px 1fr;height:calc(100vh - 47px)}
+  details{border:1px solid var(--line);border-radius:8px;margin-bottom:8px;background:var(--card2)}
+  details[open]{border-color:var(--line2)}
+  summary{cursor:pointer;padding:8px 11px;font-size:11.5px;font-weight:700;color:var(--accent2);list-style:none;user-select:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:'▸';margin-right:7px;color:var(--muted)}
+  details[open] summary::before{content:'▾';color:var(--accent)}
+  .adv-row{display:grid;grid-template-columns:1fr 130px;gap:8px;align-items:center;padding:5px 11px 5px}
+  .adv-row label{margin:0;color:var(--muted2);font-size:11px}
+  .adv-row select{padding:5px 7px;font-size:11px}
+  .pin-row{display:flex;gap:6px;align-items:center;font-size:11.5px;padding:5px 0;border-bottom:1px solid #202125}
+  .pin-row .cv-name{flex:1}
+  .pin-x{cursor:pointer;color:var(--bad);font-weight:700;padding:0 5px}
+  .controls{background:var(--bg2);border-right:1px solid var(--line);padding:16px;overflow-y:auto}
+  .output{padding:18px 22px;overflow-y:auto}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:13px}
+
+  label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}
+  /* chip toggles */
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:var(--card2);border:1px solid var(--line);
+    border-radius:7px;padding:5px 9px;cursor:pointer;user-select:none;font-size:11.5px;color:var(--muted2);transition:.12s}
+  .chip:hover{border-color:var(--line2)}
+  .chip input{display:none}
+  .chip .dot{width:7px;height:7px;border-radius:50%;background:#3a3b42;flex:none}
+  .chip.on{border-color:var(--accent-bd);color:var(--accent2);background:var(--accent-soft)}
+  .chip.on .dot{background:var(--accent)}
+
+  select,input[type=text],input[type=number],textarea{background:var(--card2);border:1px solid var(--line);color:var(--text);
+    border-radius:7px;padding:7px 9px;font:inherit;width:100%}
+  textarea{resize:vertical;min-height:54px;font-size:12px}
+  input[type=range]{width:100%;accent-color:var(--accent);height:4px}
+  .slider-head{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:3px}
+  .slider-head b{color:var(--accent2);font-weight:600}
+  .grp{margin-bottom:13px}
+  .grp:last-child{margin-bottom:0}
+  .legend{font-size:10.5px;color:var(--muted);margin-top:4px;line-height:1.4}
+
+  .seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+  .seg button{flex:1;background:var(--card2);border:0;color:var(--muted2);padding:7px 4px;cursor:pointer;font:inherit;font-size:11.5px}
+  .seg button:hover{color:var(--text)}
+  .seg button.active{background:var(--accent);color:#15140f;font-weight:700}
+
+  .btn{background:var(--accent);color:#15140f;border:0;border-radius:7px;padding:8px 13px;font-weight:700;cursor:pointer;font:inherit;font-size:12px}
+  .btn.sm{padding:6px 11px;font-size:11.5px}
+  .btn.secondary{background:var(--card2);color:var(--accent2);border:1px solid var(--line)}
+  .btn.ghost{background:transparent;color:var(--muted2);border:1px solid var(--line)}
+  .btn:hover{filter:brightness(1.07)}
+  .btnrow{display:flex;gap:7px;flex-wrap:wrap}
+
+  .mem-bar{height:20px;background:var(--card2);border-radius:6px;overflow:hidden;border:1px solid var(--line);position:relative}
+  .mem-fill{height:100%;transition:width .2s,background .2s}
+  .mem-bar span{position:absolute;left:9px;top:0;line-height:20px;font-size:11px;font-weight:700;color:#15140f}
+
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{text-align:left;color:var(--muted2);border-bottom:1px solid var(--line);padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.6px}
+  td{padding:7px 8px;border-bottom:1px solid #202125;vertical-align:top}
+  tr:hover td{background:#1d1e22}
+  .cv-name{font-family:Consolas,"SF Mono",monospace;color:var(--accent2);font-size:12px;overflow-wrap:anywhere;word-break:normal}
+  .cv-val{font-family:Consolas,monospace;color:#fff;font-weight:700}
+  .cv-val.changed{color:var(--accent)}
+  .cv-def{font-family:Consolas,monospace;color:var(--muted);font-size:11px}
+  .desc{color:var(--muted2);font-size:11.5px}
+  .why{color:var(--accent2);font-size:11px;opacity:.85;margin-top:3px}
+  .why.warn{color:var(--warn)}
+
+  .section-head{display:flex;align-items:center;gap:9px;margin:20px 0 8px}
+  .section-head .ico{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;font-size:13px;flex:none}
+  .section-head .t{font-size:13px;font-weight:700;color:var(--text)}
+  .section-head .meta{font-size:10.5px;color:var(--muted);margin-left:auto}
+  .scope-runtime .ico{background:var(--accent-soft);color:var(--accent)}
+  .scope-project .ico{background:var(--proj-soft);color:var(--proj)}
+  .badge{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 7px;border-radius:5px}
+  .badge.project{background:var(--proj-soft);color:var(--proj);border:1px solid var(--proj-bd)}
+  .badge.runtime{background:var(--accent-soft);color:var(--accent2);border:1px solid var(--accent-bd)}
+
+  .warnbox{background:linear-gradient(180deg,rgba(224,160,32,.08),transparent);border:1px solid rgba(224,160,32,.35);border-radius:9px;padding:9px 13px;margin-bottom:11px}
+  .warnbox.bad{background:linear-gradient(180deg,rgba(226,85,85,.1),transparent);border-color:rgba(226,85,85,.45)}
+  .warnbox b{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--warn)}
+  .warnbox.bad b{color:var(--bad)}
+  .warnbox ul{margin:6px 0 0;padding-left:17px}
+  .warnbox li{margin-bottom:4px;color:#ddd2b8;font-size:11.5px}
+  .warnbox.bad li{color:#eec4c4}
+
+  pre{background:#0b0b0d;border:1px solid var(--line);border-radius:9px;padding:12px;overflow:auto;
+    font:11.5px/1.5 Consolas,monospace;color:#cfe8b8;max-height:300px;white-space:pre-wrap}
+  .muted{color:var(--muted)}
+  .hidden{display:none}
+  .pill{display:inline-block;background:var(--accent-soft);color:var(--accent2);border:1px solid var(--accent-bd);border-radius:11px;padding:1px 9px;font-size:10px;margin-left:6px}
+
+  /* browse */
+  .browse-head{position:sticky;top:0;z-index:20;background:var(--bg);padding-bottom:10px;border-bottom:1px solid var(--line)}
+  .catbar{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .cat{background:var(--card2);border:1px solid var(--line);color:var(--muted2);border-radius:14px;padding:4px 12px;cursor:pointer;font-size:11.5px}
+  .cat:hover{border-color:var(--line2);color:var(--text)}
+  .cat.on{background:var(--accent);color:#15140f;border-color:var(--accent);font-weight:700}
+  .browse-tbl{table-layout:fixed}
+  .browse-tbl thead th{position:sticky;top:96px;background:var(--bg);z-index:10}
+  .filters{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+  .filters input[type=text]{flex:1;min-width:220px}
+  .count{color:var(--muted);font-size:11px}
+  footer{padding:9px 22px;color:var(--muted);font-size:10.5px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Unreal Render</h1>
+  <span class="sub">CVar Manager · UE 5.7.4 · target A40-16Q (16&nbsp;GB)</span>
+  <div class="tabs">
+    <div class="tab active" data-tab="plan">Build Preset</div>
+    <div class="tab" data-tab="browse">Browse CVars</div>
+  </div>
+</header>
+
+<!-- ============ PLAN TAB ============ -->
+<div id="tab-plan">
+<div class="wrap">
+  <!-- LEFT -->
+  <div class="controls">
+    <div class="card">
+      <h2>Render systems</h2>
+      <div class="chips" id="systems"></div>
+    </div>
+
+    <div class="card">
+      <h2>Global illumination</h2>
+      <div class="seg" id="giMode">
+        <button data-v="none">No GI</button>
+        <button data-v="lumen-sw" class="active">Lumen SW</button>
+        <button data-v="lumen-hw">Lumen HW-RT</button>
+      </div>
+      <div class="legend">SW = software (Global Distance Field / mesh SDF — the “voxel” path). HW-RT uses the A40 RT cores: best quality, needs Ray Tracing on in Project Settings + restart.</div>
+    </div>
+
+    <div class="card">
+      <h2>Scene profile</h2>
+      <div class="grp">
+        <div class="slider-head"><span>Scene scale</span><b id="scaleLbl">Medium</b></div>
+        <input type="range" id="sceneScale" min="0" max="100" value="50">
+      </div>
+      <div class="grp">
+        <div class="slider-head"><span>Speed ⟷ Quality</span><b id="qualLbl">Balanced</b></div>
+        <input type="range" id="quality" min="0" max="100" value="65">
+      </div>
+      <div class="grp">
+        <div class="slider-head"><span>VRAM budget</span><b id="memLbl">14000 MB</b></div>
+        <input type="range" id="memBudget" min="6000" max="24000" step="500" value="14000">
+        <div class="legend">Leave ~2&nbsp;GB headroom on a 16&nbsp;GB card. Over budget → pools auto-scale down (global pressure valve).</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Shadow tuning <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400;font-size:10px">— Virtual Shadow Maps</span></h2>
+      <div id="tune_shadow"></div>
+    </div>
+
+    <div class="card">
+      <h2>Lumen tuning <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400;font-size:10px">— needs Lumen GI</span></h2>
+      <div id="tune_lumen"></div>
+    </div>
+
+    <div class="card">
+      <h2>Voxelization <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400;font-size:10px">— Global Distance Field</span></h2>
+      <div id="tune_voxel"></div>
+    </div>
+
+    <div class="card">
+      <h2>Content in shot</h2>
+      <div class="chips" id="content"></div>
+    </div>
+
+    <div class="card">
+      <h2>Output / AA</h2>
+      <label>Anti-aliasing / upscaler</label>
+      <div class="seg" id="aa">
+        <button data-v="tsr" class="active">TSR</button>
+        <button data-v="taa">TAA</button>
+        <button data-v="none">None</button>
+      </div>
+      <div class="grp" style="margin-top:9px">
+        <label>Screen percentage (render res)</label>
+        <input type="number" id="screenPct" value="100" min="33" max="200">
+        <div class="legend">Keep <b>100</b> for final renders — quality comes from TSR/samples, not internal upsampling. Lower only for fast previews.</div>
+      </div>
+      <label class="chip on" id="cinChip" style="width:100%;justify-content:flex-start">
+        <input type="checkbox" id="cinematic" checked><span class="dot"></span>
+        <span>Cinematic / MRQ mode</span><span class="pill">anti-flicker</span>
+      </label>
+    </div>
+
+    <div class="card">
+      <h2>Advanced control</h2>
+      <div class="legend" style="margin-bottom:9px">Per-system overrides. <b>Auto</b> = follow the scenario logic; pick a value to force it. Pool overrides (Nanite/VSM/Textures) are locked out of the memory pressure valve.</div>
+      <div id="advBox"></div>
+    </div>
+
+    <div class="card">
+      <h2>Pin any cvar <span class="pill">full control</span></h2>
+      <div class="legend" style="margin-bottom:9px">Add any cvar from the 5.7.4 dump with your own value — appended to the output. Start typing for autocomplete.</div>
+      <div class="btnrow">
+        <input type="text" id="pinKey" list="cvarNames" placeholder="r.…  (cvar name)" style="flex:2">
+        <input type="text" id="pinVal" placeholder="value" style="flex:1">
+      </div>
+      <div class="btnrow" style="margin-top:7px">
+        <select id="pinScope" style="flex:1"><option value="runtime">Runtime</option><option value="project">Project (restart)</option></select>
+        <button class="btn sm" onclick="addPin()">Pin</button>
+      </div>
+      <datalist id="cvarNames"></datalist>
+      <div id="pinList" style="margin-top:9px"></div>
+    </div>
+
+    <div class="card">
+      <h2>Presets &amp; notes</h2>
+      <div class="grp">
+        <div class="btnrow">
+          <input type="text" id="presetName" placeholder="Preset name…" style="flex:1">
+          <button class="btn sm" onclick="savePreset()">Save</button>
+          <button class="btn secondary sm" onclick="saveAndExport()" title="Save preset and download the Render Graph python script">Save + .py</button>
+        </div>
+      </div>
+      <div class="grp">
+        <label>Saved presets</label>
+        <div class="btnrow">
+          <select id="presetList" style="flex:1" onchange="loadPreset()"></select>
+          <button class="btn ghost sm" onclick="deletePreset()">Delete</button>
+        </div>
+      </div>
+      <div class="grp">
+        <label>Notes (e.g. “tested — VSM still flickered, raised pages to 24k”)</label>
+        <textarea id="notes" placeholder="Field notes for this preset…"></textarea>
+      </div>
+      <div class="btnrow">
+        <button class="btn ghost sm" onclick="exportPresets()">Export all (.json)</button>
+        <button class="btn ghost sm" onclick="document.getElementById('impFile').click()">Import</button>
+        <input type="file" id="impFile" class="hidden" accept=".json" onchange="importPresets(event)">
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="output">
+    <div class="card">
+      <h2>Estimated VRAM <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">— rough; verify with <span class="cv-name">stat GPU</span></span></h2>
+      <div class="mem-bar"><div class="mem-fill" id="memFill"></div><span id="memText"></span></div>
+      <div class="legend" id="memBreakdown"></div>
+    </div>
+
+    <div id="warnings"></div>
+
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <h2 style="margin:0">Recommended CVars <span class="count" id="cvCount"></span></h2>
+        <div class="btnrow" style="margin-left:auto">
+          <button class="btn sm" onclick="copyOut('cmd')">Copy commands</button>
+          <button class="btn secondary sm" onclick="copyOut('ini')">Copy .ini</button>
+          <button class="btn secondary sm" onclick="downloadPy()">Export .py (Render Graph)</button>
+          <button class="btn ghost sm" onclick="copyPy()">Copy .py</button>
+          <button class="btn ghost sm" onclick="downloadTxt()">Download .txt</button>
+          <button class="btn ghost sm" id="changedBtn" onclick="toggleChangedOnly()">Changed only</button>
+        </div>
+      </div>
+      <div class="legend">Split into two scopes — apply each to the right place. <span class="badge project">Project</span> = needs restart, goes in <span class="cv-name">DefaultEngine.ini</span> / Project Settings. <span class="badge runtime">Runtime</span> = live render-graph cvars, fine in console or the MRQ console-variable job.</div>
+      <div id="planTable"></div>
+    </div>
+
+    <div class="card">
+      <h2>Copy-paste output</h2>
+      <pre id="outPre"></pre>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ============ BROWSE TAB ============ -->
+<div id="tab-browse" class="hidden">
+  <div class="output" style="max-width:1180px;margin:0 auto">
+    <div class="browse-head">
+      <div class="filters">
+        <input type="text" id="search" placeholder="Search cvar name… e.g. Shadow.Virtual, Lumen.Reflections, Nanite.Streaming">
+        <select id="setby" style="width:auto"></select>
+        <span class="count" id="browseCount"></span>
+      </div>
+      <div class="catbar" id="catbar"></div>
+    </div>
+    <div id="browseStatus" class="muted" style="padding:10px 0"></div>
+    <table class="browse-tbl">
+      <thead><tr><th style="width:38%">Name</th><th style="width:13%">Default</th><th style="width:14%">Set by</th><th style="width:35%">What it does</th></tr></thead>
+      <tbody id="browseBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<footer>Starting points, not gospel — validate per project. <span class="badge project">Project</span> items need an editor restart. Built from the supplied UE 5.7.4 dump (9,276 cvars). Presets & notes are saved in this browser's local storage.</footer>
+
+<script src="cvars-data.js"></script>
+<script>
+/* ---------------- real 5.7.4 defaults (from dump) ---------------- */
+const DEFAULTS = {
+  "r.Nanite":"1","r.Nanite.MaxPixelsPerEdge":"1","r.Nanite.Streaming.StreamingPoolSize":"512",
+  "r.Nanite.Streaming.MaxPageInstallsPerFrame":"128","r.Nanite.Streaming.MaxPendingPages":"128",
+  "r.Nanite.Streaming.NumInitialRootPages":"2048","r.Nanite.AllowSkinnedMeshes":"1",
+  "r.Shadow.Virtual.MaxPhysicalPages":"4096","r.Shadow.Virtual.ResolutionLodBiasDirectional":"-1.5",
+  "r.Shadow.Virtual.ResolutionLodBiasLocal":"0","r.Shadow.Virtual.SMRT.RayCountDirectional":"8",
+  "r.Shadow.Virtual.SMRT.RayCountLocal":"8","r.Shadow.Virtual.SMRT.SamplesPerRayDirectional":"4",
+  "r.Shadow.Virtual.SMRT.SamplesPerRayLocal":"4","r.Shadow.Virtual.Cache":"1",
+  "r.Shadow.Virtual.Clipmap.FirstLevel":"6","r.Shadow.Virtual.Clipmap.LastLevel":"22",
+  "r.RayTracing.Shadows":"1",
+  "r.DynamicGlobalIlluminationMethod":"1","r.ReflectionMethod":"1","r.RayTracing":"1",
+  "r.Lumen.HardwareRayTracing":"1","r.Lumen.HardwareRayTracing.LightingMode":"0","r.Lumen.TraceMeshSDFs":"1",
+  "r.Lumen.DiffuseIndirect.Allow":"1","r.Lumen.ScreenProbeGather.DownsampleFactor":"16",
+  "r.Lumen.ScreenProbeGather.RadianceCache.ProbeResolution":"32","r.Lumen.ScreenProbeGather.RadianceCache.NumProbesToTraceBudget":"100",
+  "r.Lumen.ScreenProbeGather.Temporal.MaxFramesAccumulated":"10","r.Lumen.ScreenProbeGather.ScreenTraces":"1",
+  "r.Lumen.ScreenProbeGather.MaxRayIntensity":"10","r.Lumen.Reflections.MaxRoughnessToTrace":"-1",
+  "r.Lumen.Reflections.DownsampleFactor":"1","r.LumenScene.Radiosity.HemisphereProbeResolution":"4",
+  "r.LumenScene.SurfaceCache.CardMaxResolution":"512","r.LumenScene.GlobalSDF.Resolution":"252",
+  "r.LumenScene.GlobalSDF.ClipmapExtent":"2500","r.LumenScene.Lighting.ForceLightingUpdate":"0",
+  "r.DistanceFields":"1","r.AOGlobalDistanceField":"1",
+  "r.SkyAtmosphere":"1","r.SkyAtmosphere.FastSkyLUT":"1","r.SkyAtmosphere.SampleCountMax":"128",
+  "r.SkyAtmosphere.AerialPerspectiveLUT.SampleCountMaxPerSlice":"4","r.SkyAtmosphere.MultiScatteringLUT.HighQuality":"0",
+  "r.SkyAtmosphere.AerialPerspectiveLUT.DepthResolution":"16",
+  "r.VolumetricCloud":"1","r.VolumetricCloud.ViewRaySampleMaxCount":"768",
+  "r.VolumetricFog":"1","r.VolumetricFog.GridPixelSize":"8","r.VolumetricFog.GridSizeZ":"128",
+  "r.VolumetricFog.TemporalReprojection":"1","r.VolumetricFog.HistoryWeight":"0.9",
+  "r.Streaming.PoolSize":"8192","r.Streaming.LimitPoolSizeToVRAM":"0","r.Streaming.FullyLoadUsedTextures":"0",
+  "r.MipMapLODBias":"0","r.AntiAliasingMethod":"4","r.TemporalAASamples":"8","r.ScreenPercentage":"100",
+  "r.TSR.History.SampleCount":"16","r.TSR.History.ScreenPercentage":"200","r.MotionBlurQuality":"4",
+  "r.SkinCache.Mode":"1","r.SkinCache.RecomputeTangents":"2","r.GBufferFormat":"1",
+  "r.BloomQuality":"5","r.DepthOfFieldQuality":"2","r.AmbientOcclusionLevels":"-1","r.AmbientOcclusion.Method":"0",
+  "r.GTAO.NumAngles":"4","r.HairStrands.Enable":"1","r.HairStrands.SkyLighting":"1","r.SSR.Quality":"3",
+  "r.EyeAdaptationQuality":"2","r.DefaultFeature.AutoExposure":"1",
+  "MovieRenderPipeline.NumWarmUpFramesWithTemporalSampling":"5"
+};
+
+/* ---------------- state ---------------- */
+const DEF_STATE = {
+  systems:{atmo:true, clouds:false, volFog:true, nanite:true, vsm:true, distanceFields:true,
+           reflections:true, rtShadows:false, ao:true, translucency:true, sss:false, bloom:true,
+           dof:false, motionBlur:true, lensFlare:false, hair:false, autoExposure:true},
+  content:{static:true, crowd:false, characters:true, niagara:false, foliage:false},
+  giMode:"lumen-sw", sceneScale:50, quality:65, memBudget:14000,
+  aa:"tsr", screenPct:100, cinematic:true,
+  shadow:{detail:60, softness:45, distance:40},
+  lumen:{gather:60, reflection:60, stability:60},
+  voxel:{resolution:55, range:40},
+  adv:{}, pins:[]
+};
+let state = structuredClone(DEF_STATE);
+const SYS_LABELS={atmo:"Sky Atmosphere", clouds:"Volumetric Clouds", volFog:"Volumetric Fog", nanite:"Nanite",
+  vsm:"Virtual Shadow Maps", distanceFields:"Distance Fields", reflections:"Reflections", rtShadows:"Ray-Traced Shadows",
+  ao:"Ambient Occlusion", translucency:"Translucency (separate)", sss:"Subsurface Scattering", bloom:"Bloom",
+  dof:"Depth of Field", motionBlur:"Motion Blur", lensFlare:"Lens Flare", hair:"Hair / Groom", autoExposure:"Auto Exposure"};
+const CONTENT_LABELS={static:"Static objects", crowd:"Crowd (skinned)", characters:"Hero characters", niagara:"Niagara FX", foliage:"Foliage / grass"};
+
+/* ---------------- helpers ---------------- */
+const lerp=(a,b,t)=>a+(b-a)*t;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const r2=(v,step)=>Math.round(v/step)*step;
+const snap=(v,arr)=>arr.reduce((a,b)=>Math.abs(b-v)<Math.abs(a-v)?b:a);
+let changedOnly=false;
+let DESC={};   // key -> description (also reused by Browse)
+
+/* ---- slider → cvar mappings (shared by the rules engine AND the live slider previews) ---- */
+function shadowCvars(sh){
+  const d=sh.detail/100, so=sh.softness/100, di=sh.distance/100;
+  const rc=Math.round(lerp(4,32,so)), sr=Math.round(lerp(2,8,so));
+  return {
+    'r.Shadow.Virtual.ResolutionLodBiasDirectional': +lerp(-0.5,-2.5,d).toFixed(2),
+    'r.Shadow.Virtual.ResolutionLodBiasLocal': +lerp(0,-1,d).toFixed(2),
+    'r.Shadow.Virtual.Clipmap.FirstLevel': Math.round(lerp(8,6,d)),
+    'r.Shadow.Virtual.SMRT.RayCountDirectional': rc,
+    'r.Shadow.Virtual.SMRT.RayCountLocal': rc,
+    'r.Shadow.Virtual.SMRT.SamplesPerRayDirectional': sr,
+    'r.Shadow.Virtual.SMRT.SamplesPerRayLocal': sr,
+    'r.Shadow.Virtual.Clipmap.LastLevel': Math.round(lerp(18,26,di)),
+  };
+}
+function lumenCvars(lu){
+  const g=lu.gather/100, r=lu.reflection/100, st=lu.stability/100;
+  return {
+    'r.Lumen.ScreenProbeGather.DownsampleFactor': snap(lerp(32,8,g),[8,16,32]),
+    'r.Lumen.ScreenProbeGather.RadianceCache.ProbeResolution': snap(lerp(16,64,g),[16,32,64]),
+    'r.Lumen.ScreenProbeGather.RadianceCache.NumProbesToTraceBudget': r2(lerp(100,400,g),50),
+    'r.Lumen.ScreenProbeGather.TracingOctahedronResolution': snap(lerp(8,16,g),[8,16]),
+    'r.Lumen.Reflections.DownsampleFactor': r>0.4?1:2,
+    'r.Lumen.Reflections.MaxRoughnessToTrace': r>0.7?1:(r>0.4?0.4:-1),
+    'r.Lumen.ScreenProbeGather.Temporal.MaxFramesAccumulated': Math.round(lerp(4,32,st)),
+  };
+}
+function voxelCvars(vx){
+  const res=vx.resolution/100, rng=vx.range/100;
+  return {
+    'r.LumenScene.GlobalSDF.Resolution': r2(lerp(160,384,res),4),
+    'r.AOGlobalDistanceField.MipFactor': Math.round(lerp(4,2,res)),
+    'r.LumenScene.GlobalSDF.ClipmapExtent': r2(lerp(2000,10000,rng),100),
+  };
+}
+
+/* ---------------- rules engine ---------------- */
+function buildPlan(){
+  const q=state.quality/100, s=state.sceneScale/100, cin=state.cinematic;
+  const c=state.content, sys=state.systems, gi=state.giMode;
+  const dynamicHeavy = c.crowd || c.characters || c.niagara || c.foliage;
+  const out=[]; const warns=[]; const bads=[];
+  const ADV=state.adv||{};
+  const isSet=k=>ADV[k]!==undefined && ADV[k]!=='auto' && ADV[k]!=='';
+  // value-override for emitted cvars
+  const A=(key,autoVal)=> isSet(key)?ADV[key]:autoVal;
+  const advNum=(k,cur)=> isSet(k)?(+ADV[k]):cur;
+  // add(group, key, val, desc, why, {proj, warn}). Honors advanced override automatically.
+  const add=(group,key,val,desc,why,o={})=>{ DESC[key]=desc; out.push({group,key,val:(''+A(key,val)),desc,why,proj:!!o.proj,warn:o.warn||''}); };
+
+  /* ---- memory-scalable pools (advanced overrides lock them out of the pressure valve) ---- */
+  const budget=state.memBudget;
+  let texPool = r2(clamp(budget*0.42, 2000, 8192), 256);
+  let nanitePool = sys.nanite ? r2(lerp(768, 3072, 0.45*s+0.55*q), 128) : 0;
+  let vsmDrive = Math.max(0.35*s + 0.3*q, dynamicHeavy?0.55:0) + (c.crowd?0.2:0);
+  let vsmPages = sys.vsm ? r2(lerp(4096, 20480, clamp(vsmDrive,0,1)), 2048) : 0;
+  let volScale = sys.volFog ? (cin? lerp(8,4,q) : lerp(12,6,q)) : 8;
+  let volZ = sys.volFog ? (q>0.7||cin?256:128) : 128;
+  // apply user pool overrides up-front so the VRAM estimate reflects them
+  texPool = advNum('r.Streaming.PoolSize', texPool);
+  if(sys.nanite) nanitePool = advNum('r.Nanite.Streaming.StreamingPoolSize', nanitePool);
+  if(sys.vsm) vsmPages = advNum('r.Shadow.Virtual.MaxPhysicalPages', vsmPages);
+  const lockTex=isSet('r.Streaming.PoolSize'), lockNan=isSet('r.Nanite.Streaming.StreamingPoolSize'), lockVsm=isSet('r.Shadow.Virtual.MaxPhysicalPages');
+
+  function estimate(np, vp, tp, vGrid, vZ){
+    const base=2600;
+    const vsmMB = vp*0.0625;
+    const volMB = sys.volFog ? (1920/vGrid)*(1080/vGrid)*vZ*8/1048576 : 0;
+    let lumenMB=0;
+    if(gi!=="none"){ lumenMB = 350 + (gi==="lumen-hw"?250:150) + q*450 + s*250; }
+    const dfMB = (sys.distanceFields||gi==="lumen-sw") ? lerp(150,500,s) : 0;
+    const cloudMB = sys.clouds ? lerp(60,200,q) : 0;
+    return {base, tex:tp, nanite:np, vsm:vsmMB, vol:volMB, lumen:lumenMB, df:dfMB, cloud:cloudMB,
+            total: base+tp+np+vsmMB+volMB+lumenMB+dfMB+cloudMB};
+  }
+  let est=estimate(nanitePool,vsmPages,texPool,volScale,volZ);
+
+  let pressure=0;
+  if(est.total>budget){
+    for(let f=0.95; f>=0.4; f-=0.05){
+      const tp=lockTex?texPool:Math.max(1500, Math.round(texPool*f));
+      const np=(!sys.nanite)?0:(lockNan?nanitePool:Math.max(384, Math.round(nanitePool*f)));
+      const vp=(!sys.vsm)?0:(lockVsm?vsmPages:Math.max(2048, r2(vsmPages*f,1024)));
+      const e=estimate(np,vp,tp,volScale,volZ);
+      pressure=Math.round((1-f)*100);
+      if(e.total<=budget || f<=0.4){ texPool=tp; nanitePool=np; vsmPages=vp; est=e; break; }
+    }
+    if(est.total>budget) bads.push(`Even at full memory pressure the estimate (${Math.round(est.total)} MB) exceeds your ${budget} MB budget. Lower scene scale/quality, cut a system, or drop screen percentage.`);
+    else warns.push(`Memory pressure engaged (~${pressure}%): texture/Nanite/VSM pools were scaled down to fit ${budget} MB.`);
+  }
+
+  /* =================== GLOBAL ILLUMINATION =================== */
+  add("Global Illumination","r.DynamicGlobalIlluminationMethod", gi==="none"?0:1,
+      "Selects the dynamic GI system (0 none, 1 Lumen).",
+      gi==="none"?"No dynamic GI — fastest; rely on bake/skylight.":"Lumen GI.",{proj:true});
+  if(sys.reflections || gi!=="none")
+    add("Global Illumination","r.ReflectionMethod", gi==="none"?(sys.reflections?2:0):1,
+        "Reflection system (0 none, 1 Lumen, 2 SSR).",
+        gi==="none"?(sys.reflections?"SSR only (cheap).":"Reflections off."):"Lumen reflections.",{proj:true});
+  if(gi==="lumen-hw"){
+    add("Global Illumination","r.RayTracing",1,"Master ray-tracing switch; needs RT-capable GPU.","Required for HW-RT Lumen (A40 ✓).",{proj:true});
+    add("Global Illumination","r.Lumen.HardwareRayTracing",1,"Use GPU RT cores for Lumen tracing instead of SDF.","Sharpest, most stable GI/reflections.");
+    add("Global Illumination","r.Lumen.HardwareRayTracing.LightingMode", q>0.6||cin?2:0,
+        "0 = surface-cache lighting; 2 = hit-lighting (evaluate real material at hit).",
+        q>0.6||cin?"Hit-lighting → accurate reflections for hero frames.":"Surface-cache lighting (fast).");
+  } else if(gi==="lumen-sw"){
+    add("Global Illumination","r.Lumen.HardwareRayTracing",0,"Disables RT cores; uses software SDF tracing.","Software path — no RT cores needed.");
+    add("Global Illumination","r.Lumen.TraceMeshSDFs",1,"Trace detail against per-mesh distance fields.","Needs Mesh Distance Fields generated at build.",{proj:true});
+  }
+  if(gi!=="none"){
+    const LU=lumenCvars(state.lumen);
+    // ---- Final gather slider ----
+    add("Lumen quality","r.Lumen.ScreenProbeGather.DownsampleFactor", LU['r.Lumen.ScreenProbeGather.DownsampleFactor'],
+        "Spacing of final-gather screen probes (lower = denser).","Driven by Final gather slider — denser = less blotchy/flickery GI.");
+    add("Lumen quality","r.Lumen.ScreenProbeGather.RadianceCache.ProbeResolution", LU['r.Lumen.ScreenProbeGather.RadianceCache.ProbeResolution'],
+        "Resolution of each radiance-cache probe.","Driven by Final gather slider — higher reduces low-frequency GI flicker.");
+    add("Lumen quality","r.Lumen.ScreenProbeGather.RadianceCache.NumProbesToTraceBudget", LU['r.Lumen.ScreenProbeGather.RadianceCache.NumProbesToTraceBudget'],
+        "How many radiance-cache probes update per frame.","Driven by Final gather slider — raise so GI converges faster.");
+    add("Lumen quality","r.Lumen.ScreenProbeGather.TracingOctahedronResolution", LU['r.Lumen.ScreenProbeGather.TracingOctahedronResolution'],
+        "Per-probe trace resolution.","Driven by Final gather slider — higher = sharper GI directionality.");
+    add("Lumen quality","r.Lumen.ScreenProbeGather.MaxRayIntensity", q>0.6?20:8,
+        "Clamps the brightness a single GI ray can contribute.","Higher keeps energy but can sparkle.");
+    add("Lumen quality","r.LumenScene.SurfaceCache.CardMaxResolution", q>0.7?1024:512,
+        "Max texel resolution of surface-cache cards.","Higher = crisper indirect detail & reflections.");
+    if(sys.reflections){
+      // ---- Reflections slider ----
+      add("Lumen quality","r.Lumen.Reflections.DownsampleFactor", LU['r.Lumen.Reflections.DownsampleFactor'],
+          "Reflection trace resolution (1 = full).","Driven by Reflections slider.");
+      add("Lumen quality","r.Lumen.Reflections.MaxRoughnessToTrace", LU['r.Lumen.Reflections.MaxRoughnessToTrace'],
+          "Roughest surface that still gets traced reflections (-1 = auto).","Driven by Reflections slider — higher = traced reflections on rougher surfaces.");
+    }
+    if(c.foliage) add("Lumen quality","r.Lumen.ScreenProbeGather.TwoSidedFoliageBackfaceDiffuse",1,
+        "Let GI light the back faces of two-sided foliage.","Keeps dense foliage from going black on the shaded side.");
+    // ---- Temporal stability slider ----
+    add("Lumen stability","r.Lumen.ScreenProbeGather.Temporal.MaxFramesAccumulated", LU['r.Lumen.ScreenProbeGather.Temporal.MaxFramesAccumulated'],
+        "Frames of GI temporal accumulation.","Driven by Temporal stability slider — more = smoother GI; lower if fast motion smears.");
+    if(cin) add("Lumen stability","r.LumenScene.Lighting.ForceLightingUpdate", dynamicHeavy?0:1,
+        "Force a full Lumen scene lighting update every frame.",
+        dynamicHeavy?"Off — too costly with heavy motion; rely on warm-up.":"On — static cinematics fully converged each frame.");
+  }
+
+  /* =================== VOXELIZATION (GLOBAL DISTANCE FIELD) =================== */
+  if(gi!=="none" || sys.distanceFields){
+    const VX=voxelCvars(state.voxel);
+    if(gi!=="none"){
+      add("Voxelization","r.LumenScene.GlobalSDF.Resolution", VX['r.LumenScene.GlobalSDF.Resolution'],
+          "Voxel resolution of the global signed-distance field.","Driven by Voxel detail slider — higher = less GI leaking/over-occlusion on thin geo.");
+      add("Voxelization","r.LumenScene.GlobalSDF.ClipmapExtent", VX['r.LumenScene.GlobalSDF.ClipmapExtent'],
+          "World distance the global SDF covers (cm).","Driven by Voxel range slider — raise for large scenes so distant GI isn't clipped.");
+    }
+    if(sys.distanceFields || gi==="lumen-sw")
+      add("Voxelization","r.AOGlobalDistanceField.MipFactor", VX['r.AOGlobalDistanceField.MipFactor'],
+          "Detail of the merged global distance field (lower = finer voxels).","Driven by Voxel detail slider.");
+  }
+
+  /* =================== NANITE =================== */
+  if(sys.nanite){
+    add("Nanite","r.Nanite",1,"Master switch for Nanite virtualized geometry.","Nanite on.");
+    add("Nanite","r.Nanite.MaxPixelsPerEdge", q>0.45?1:2,
+        "Target triangle size in pixels (1 = full detail).","1 for finals; 2 for fast previews.");
+    add("Nanite","r.Nanite.Streaming.StreamingPoolSize", nanitePool,
+        "VRAM (MB) reserved for streaming Nanite clusters.","Main Nanite VRAM lever — bigger = far less mesh pop-in.");
+    if(cin){
+      add("Nanite","r.Nanite.Streaming.MaxPageInstallsPerFrame", 2048,"How many geometry pages can be made resident per frame.","Lets geometry resolve fast — kills pop-in during warm-up.");
+      add("Nanite","r.Nanite.Streaming.MaxPendingPages", 1024,"Size of the page request queue.","Feeds the higher install rate above.");
+      add("Nanite","r.Nanite.Streaming.NumInitialRootPages", 4096,"Root pages kept resident up-front.","Less first-frame pop-in.");
+    }
+    if(c.crowd||c.characters) add("Nanite","r.Nanite.AllowSkinnedMeshes",1,"Allow skinned (animated) meshes to use Nanite.","Skinned Nanite for crowds/characters.");
+  } else {
+    add("Nanite","r.Nanite",0,"Master switch for Nanite virtualized geometry.","Off — using traditional LODs; ensure assets have LODs.");
+  }
+
+  /* =================== VSM =================== */
+  if(sys.vsm){
+    const SH=shadowCvars(state.shadow);
+    add("Virtual Shadow Maps","r.Shadow.Virtual.MaxPhysicalPages", vsmPages,
+        "Size of the VSM physical page pool.","Biggest VSM VRAM + stability lever; too small → flicker/overflow.");
+    add("Virtual Shadow Maps","r.Shadow.Virtual.Cache",1,"Cache shadow pages across frames.","Keep on — per-frame recompute is far slower.");
+    // ---- Shadow tuning sliders: Close-up detail ----
+    add("Virtual Shadow Maps","r.Shadow.Virtual.ResolutionLodBiasDirectional", SH['r.Shadow.Virtual.ResolutionLodBiasDirectional'],
+        "Resolution bias for sun/moon shadows (more negative = sharper).","Driven by Close-up detail slider.");
+    add("Virtual Shadow Maps","r.Shadow.Virtual.ResolutionLodBiasLocal", SH['r.Shadow.Virtual.ResolutionLodBiasLocal'],
+        "Resolution bias for local-light shadows.","Driven by Close-up detail slider.");
+    add("Virtual Shadow Maps","r.Shadow.Virtual.Clipmap.FirstLevel", SH['r.Shadow.Virtual.Clipmap.FirstLevel'],
+        "Finest directional clipmap level (lower = more near detail).","Driven by Close-up detail slider.");
+    // ---- Soft-shadow quality ----
+    add("Virtual Shadow Maps","r.Shadow.Virtual.SMRT.RayCountDirectional", SH['r.Shadow.Virtual.SMRT.RayCountDirectional'],
+        "Rays per pixel for soft directional shadows.","Driven by Soft-shadow quality slider — higher = less penumbra noise/flicker.");
+    add("Virtual Shadow Maps","r.Shadow.Virtual.SMRT.RayCountLocal", SH['r.Shadow.Virtual.SMRT.RayCountLocal'],
+        "Rays per pixel for soft local-light shadows.","Driven by Soft-shadow quality slider.");
+    add("Virtual Shadow Maps","r.Shadow.Virtual.SMRT.SamplesPerRayDirectional", SH['r.Shadow.Virtual.SMRT.SamplesPerRayDirectional'],
+        "Samples taken along each directional shadow ray.","Driven by Soft-shadow quality slider — smoother contact shadows.");
+    add("Virtual Shadow Maps","r.Shadow.Virtual.SMRT.SamplesPerRayLocal", SH['r.Shadow.Virtual.SMRT.SamplesPerRayLocal'],
+        "Samples taken along each local shadow ray.","Driven by Soft-shadow quality slider.");
+    // ---- Large-scene range ----
+    add("Virtual Shadow Maps","r.Shadow.Virtual.Clipmap.LastLevel", SH['r.Shadow.Virtual.Clipmap.LastLevel'],
+        "Coarsest clipmap level / max shadow distance.","Driven by Large-scene range slider — raise for open worlds.");
+    add("Virtual Shadow Maps","r.Shadow.Virtual.DistantLightMode", 1,
+        "How shadows for very distant lights are cached (1 = on).","Keep on so far-off lights still cast cached shadows.");
+  } else {
+    warns.push("VSM off: with Nanite, cascaded shadows are slow and bias-prone — VSM is strongly recommended.");
+  }
+
+  /* =================== RT SHADOWS =================== */
+  if(sys.rtShadows){
+    add("Ray-Traced Shadows","r.RayTracing.Shadows", 1,"Use ray tracing for analytic-light shadows.","Razor-sharp hero shadows (needs RayTracing on).",{proj:true});
+    if(gi!=="lumen-hw") warns.push("Ray-Traced Shadows need r.RayTracing=1; switch GI to Lumen HW-RT or enable Ray Tracing in Project Settings.");
+  }
+
+  /* =================== ATMOSPHERE =================== */
+  if(sys.atmo){
+    add("Sky Atmosphere","r.SkyAtmosphere",1,"Physically-based sky + aerial perspective.","Atmosphere on.");
+    add("Sky Atmosphere","r.SkyAtmosphere.FastSkyLUT", (cin||q>0.75)?0:1,
+        "Use a cheap LUT for the sky instead of per-pixel.",
+        (cin||q>0.75)?"Full per-pixel sky (no LUT banding) for hero frames.":"Fast LUT sky for previews.");
+    add("Sky Atmosphere","r.SkyAtmosphere.SampleCountMax", r2(lerp(64,256,q),8),
+        "Max raymarch samples through the atmosphere.","Higher kills banding on horizons/sunsets.");
+    add("Sky Atmosphere","r.SkyAtmosphere.AerialPerspectiveLUT.SampleCountMaxPerSlice", q>0.6?8:4,
+        "Samples per aerial-perspective depth slice.","Better distance haze for large vistas.");
+    add("Sky Atmosphere","r.SkyAtmosphere.AerialPerspectiveLUT.DepthResolution", s>0.5?32:16,
+        "Depth slices for aerial perspective.","More = smoother distance haze on large scenes.");
+    if(q>0.7) add("Sky Atmosphere","r.SkyAtmosphere.MultiScatteringLUT.HighQuality",1,"Higher-quality multiple-scattering LUT.","Softer sky/horizon, gentler terminator.");
+  } else {
+    add("Sky Atmosphere","r.SkyAtmosphere",0,"Physically-based sky + aerial perspective.","Off — ensure a skylight/HDRI provides ambient.");
+  }
+
+  /* =================== CLOUDS =================== */
+  if(sys.clouds){
+    add("Volumetric Clouds","r.VolumetricCloud",1,"Volumetric cloud rendering.","Clouds on.");
+    add("Volumetric Clouds","r.VolumetricCloud.ViewRaySampleMaxCount", r2(lerp(384,1024,q),64),
+        "Max raymarch steps through clouds.","Higher = denser, less-noisy clouds (costly).");
+  }
+
+  /* =================== VOLUMETRIC FOG =================== */
+  if(sys.volFog){
+    add("Volumetric Fog","r.VolumetricFog",1,"Froxel volumetric fog & light shafts.","Volumetric fog on.");
+    add("Volumetric Fog","r.VolumetricFog.GridPixelSize", volScale,
+        "Screen-space froxel size in pixels (lower = sharper).","Sharper light shafts/god rays; 4 = cinematic.");
+    add("Volumetric Fog","r.VolumetricFog.GridSizeZ", volZ,
+        "Number of depth slices in the fog volume.","Higher = smoother fog into distance.");
+    add("Volumetric Fog","r.VolumetricFog.TemporalReprojection",1,"Reuse previous-frame fog to denoise.","Keep on — fog is very noisy without it.");
+    if(cin) add("Volumetric Fog","r.VolumetricFog.HistoryWeight", dynamicHeavy?0.9:0.95,
+        "How strongly previous fog frames are blended.","Heavier history = steadier fog for slow/static shots.");
+  } else {
+    add("Volumetric Fog","r.VolumetricFog",0,"Froxel volumetric fog & light shafts.","Off — Height Fog still renders (non-volumetric).");
+  }
+
+  /* =================== DISTANCE FIELDS =================== */
+  if(sys.distanceFields || gi==="lumen-sw"){
+    add("Distance Fields","r.DistanceFields",1,"Generate/use per-mesh signed distance fields.",
+        gi==="lumen-sw"?"Required by Software Lumen & DF shadows/AO.":"Mesh DFs for DF shadows/AO.",{proj:true});
+    add("Distance Fields","r.AOGlobalDistanceField",1,"Build the merged global distance field.","Global DF for AO / SW-Lumen scene representation.");
+  }
+
+  /* =================== AMBIENT OCCLUSION =================== */
+  if(sys.ao){
+    add("Ambient Occlusion","r.AmbientOcclusionLevels", q>0.6?3:2,"Number of SSAO mip levels (-1 = auto).","More levels = wider-range AO.");
+    add("Ambient Occlusion","r.AmbientOcclusion.Method", q>0.6?1:0,"0 = SSAO, 1 = GTAO (ground-truth).",q>0.6?"GTAO — more accurate contact AO.":"SSAO (cheaper).");
+    if(q>0.6) add("Ambient Occlusion","r.GTAO.NumAngles", 4,"Directions sampled by GTAO.","Keep 4+ for stable AO.");
+    if(gi!=="none") warns.push("Lumen already provides indirect/contact AO — screen-space AO is mostly redundant under Lumen and can double-darken. Consider leaving it off for GI scenes.");
+  }
+
+  /* =================== HAIR =================== */
+  if(sys.hair){
+    add("Hair / Groom","r.HairStrands.Enable",1,"Enable strand-based hair/grooms.","Hair strands on.");
+    add("Hair / Groom","r.HairStrands.SkyLighting",1,"Sky/ambient lighting for hair.","Proper ambient on hair.");
+    if(!c.characters) warns.push("Hair/Groom is on but no hero characters are flagged — turn it off if nothing uses grooms.");
+  }
+
+  /* =================== SKINNED CONTENT =================== */
+  if(c.crowd||c.characters){
+    add("Skinned meshes","r.SkinCache.Mode",1,"GPU skin cache mode.","Required for RT/Lumen-correct & Nanite skinned shadows.");
+    add("Skinned meshes","r.SkinCache.RecomputeTangents", q>0.6?2:1,"Recompute tangents after skinning (2 = all).","Correct normals under deformation.");
+    if(c.crowd) warns.push("Crowds: moving skinned meshes invalidate VSM pages every frame. The page pool was enlarged — watch the log for 'VSM page pool overflow' and raise r.Shadow.Virtual.MaxPhysicalPages if needed.");
+  }
+
+  /* =================== TRANSLUCENCY / TRANSPARENT SHADERS =================== */
+  if(sys.translucency){
+    add("Translucency","r.SeparateTranslucency",1,"Render translucency in a separate pass so DOF/upscale handle it correctly.","Keep on for glass, particles, water, foliage alpha.");
+    add("Translucency","r.SeparateTranslucencyScreenPercentage", q>0.6?100:50,"Resolution % of the separate-translucency buffer.","Full-res translucency for clean glass/particles in finals.");
+    add("Translucency","r.TranslucencyLightingVolume",1,"Froxel volume that lights translucent surfaces & particles.","Needed for lit smoke/fog particles and glass receiving light.");
+    add("Translucency","r.TranslucentSortPolicy", 0,"Sorting basis for translucent draws (0 = by projected distance).","Default sort — switch only if you see layered-glass sort errors.");
+    if(gi!=="none"){
+      add("Translucency","r.Lumen.TranslucencyVolume.Enable",1,"Lumen GI injected into the translucency lighting volume.","Translucent/foliage gets Lumen indirect light.");
+      // Front-layer Lumen reflections on glass — off by default (cost + needs project flag)
+      if(isSet('r.Lumen.TranslucencyReflections.FrontLayer.Enable') && ADV['r.Lumen.TranslucencyReflections.FrontLayer.Enable']==='1'){
+        add("Translucency","r.Lumen.TranslucencyReflections.FrontLayer.EnableForProject",1,"Project-wide enable for Lumen reflections on the front translucent layer.","Required alongside the runtime enable.",{proj:true});
+        add("Translucency","r.Lumen.TranslucencyReflections.FrontLayer.Enable",1,"Lumen reflections on the nearest translucent layer (glass).","Real reflections on glass/water (costly) instead of SSR/cubemap.");
+        warns.push("Lumen front-layer translucency reflections only cover the closest layer — stacked glass still falls back. Expensive; enable only for hero glass shots.");
+      }
+    }
+  } else {
+    add("Translucency","r.SeparateTranslucency",0,"Render translucency in a separate pass.","Off — translucency composited inline; DOF won't affect it correctly. Only for special cases.");
+    warns.push("Separate Translucency is off — depth of field and upscaling won't treat transparent objects correctly. Leave it on unless you have a specific reason.");
+  }
+
+  /* =================== SUBSURFACE SCATTERING =================== */
+  if(sys.sss){
+    add("Subsurface","r.SubsurfaceScattering",1,"Screen-space subsurface scattering (skin, wax, foliage).","On for believable skin/translucent organics.");
+    add("Subsurface","r.SSS.Quality", q>0.5?1:0,"SSS sampling quality (1 = high/adaptive).","High quality for skin close-ups.");
+    add("Subsurface","r.SSS.Scale", 1,"Global multiplier on SSS radius.","1 = use per-material radius (don't scale unless art-directed).");
+    add("Subsurface","r.SSS.HalfRes", (q>0.6||cin)?0:1,"Run SSS at half resolution.",(q>0.6||cin)?"Full-res SSS — crisp skin for finals.":"Half-res to save perf in previews.");
+  } else add("Subsurface","r.SubsurfaceScattering",0,"Screen-space subsurface scattering.","Off — skin/wax will look opaque.");
+
+  /* =================== POST: BLOOM / DOF / MB / EXPOSURE =================== */
+  if(sys.bloom) add("Post Process","r.BloomQuality", 5,"Bloom convolution quality (0 off…5 best).","Full-quality bloom.");
+  else add("Post Process","r.BloomQuality", 0,"Bloom convolution quality (0 off…5 best).","Bloom off.");
+  if(sys.dof) add("Post Process","r.DepthOfFieldQuality", q>0.6?2:1,"Cinematic depth-of-field quality (0 off…2).","DoF on for cinematic focus.");
+  else add("Post Process","r.DepthOfFieldQuality", 0,"Cinematic depth-of-field quality (0 off…2).","DoF off.");
+  if(sys.lensFlare) add("Post Process","r.LensFlareQuality", q>0.6?3:2,"Bokeh lens-flare quality (0 off…3).","Lens flares on.");
+  else add("Post Process","r.LensFlareQuality", 0,"Bokeh lens-flare quality (0 off…3).","Lens flares off.");
+  if(sys.autoExposure) add("Post Process","r.EyeAdaptationQuality", 2,"Auto-exposure quality.","Auto-exposure on.");
+  else { add("Post Process","r.DefaultFeature.AutoExposure", 0,"Default auto-exposure on/off.","Fixed exposure (recommended for consistent renders).",{proj:true}); }
+
+  /* =================== AA / OUTPUT =================== */
+  const aaVal = state.aa==="tsr"?4 : state.aa==="taa"?2 : 0;
+  add("Output / AA","r.AntiAliasingMethod", aaVal,"AA method (0 none,1 FXAA,2 TAA,4 TSR).",
+      state.aa==="tsr"?"TSR — best temporal AA + upsampling.":state.aa==="taa"?"TAA.":"No AA (only if MRQ samples spatially).");
+  if(state.aa==="tsr"){
+    add("Output / AA","r.TSR.History.SampleCount", q>0.6?16:8,"TSR temporal history depth.","16 = max stability.");
+    if(state.screenPct<100) add("Output / AA","r.TSR.History.ScreenPercentage", 200,"Internal TSR history resolution %.","Keep 200% when upsampling for crispness.");
+  }
+  if(state.aa==="taa") add("Output / AA","r.TemporalAASamples", cin?16:8,"Jittered samples accumulated by TAA.","More samples = cleaner stills.");
+  add("Output / AA","r.ScreenPercentage", state.screenPct,"Primary render resolution % of output.",
+      state.screenPct<100?"Rendering below native & upsampling — biggest speed lever.":state.screenPct>100?"Supersampling — sharpest, expensive.":"Native resolution.");
+  if(sys.motionBlur) add("Output / AA","r.MotionBlurQuality", cin?4:2,"Motion-blur quality (0 off…4).",cin?"High-quality motion blur.":"Lower for preview.");
+  else add("Output / AA","r.MotionBlurQuality", 0,"Motion-blur quality (0 off…4).","Off — or let MRQ accumulate motion samples.");
+
+  /* =================== TEXTURE STREAMING / BUFFERS =================== */
+  add("Texture streaming","r.Streaming.PoolSize", texPool,"VRAM (MB) budget for streamed textures.","Too small → blurry/late textures; scaled to your budget.");
+  add("Texture streaming","r.Streaming.LimitPoolSizeToVRAM",1,"Clamp pool to physical VRAM.","Avoids over-commit hitching/OOM.");
+  if(cin){
+    add("Texture streaming","r.Streaming.FullyLoadUsedTextures",1,"Load full-res mips for all visible textures.","Eliminates texture pop/blur in renders (more VRAM).");
+    add("Texture streaming","r.MipMapLODBias",0,"Global mip LOD bias.","No bias — full texture sharpness.");
+  }
+  add("Buffers","r.GBufferFormat",1,"GBuffer precision (1 = high).","Keep high for clean lighting/normals.");
+
+  /* =================== CINEMATIC / MRQ =================== */
+  if(cin){
+    add("Cinematic / MRQ","MovieRenderPipeline.NumWarmUpFramesWithTemporalSampling", dynamicHeavy?48:32,
+        "Frames rendered (discarded) before capture to converge temporal systems.",
+        "The #1 fix for first-frame pop-in & flicker — lets Lumen/VSM/Nanite/streaming settle.");
+  }
+
+  /* =================== ANTICIPATORY WARNINGS =================== */
+  if(gi==="lumen-hw" && !sys.distanceFields) warns.push("HW-RT Lumen still uses Mesh Distance Fields for far-field/fallback — keep Distance Fields on.");
+  if(gi==="lumen-sw") warns.push("Software Lumen quality depends on Mesh Distance Field resolution. Thin objects may leak light — raise their per-mesh DF resolution or use HW-RT for hero shots.");
+  if(sys.nanite && !sys.vsm) warns.push("Nanite + non-VSM shadows often shows bias/peter-panning. Prefer VSM with Nanite.");
+  if(c.niagara && cin) warns.push("Niagara: GPU sims need the warm-up frames to settle; set sims 'Deterministic' so each MRQ sub-sample matches.");
+  if(state.screenPct<67 && q>0.7) warns.push("High quality requested but rendering <67% screen percentage — TSR can't fully recover detail. Raise it for hero frames.");
+  if(state.memBudget>16000) warns.push("Budget is above the A40-16Q's 16 GB — that card can't exceed ~16 GB.");
+  if(sys.autoExposure && cin) warns.push("Auto-exposure can cause brightness flicker/pumping across frames. For consistent renders, prefer a fixed exposure (turn Auto Exposure off).");
+
+  /* =================== ADVANCED OVERRIDES NOT EMITTED ABOVE =================== */
+  // Any advanced control the user set that isn't already in the plan gets added here.
+  const present=new Set(out.map(o=>o.key));
+  for(const k in ADV){
+    if(!isSet(k) || present.has(k)) continue;
+    const meta=ADV_META[k]||{group:'Advanced', proj:false, desc:'Advanced override.'};
+    add(meta.group, k, ADV[k], meta.desc, "Manual advanced override.", {proj:meta.proj});
+    present.add(k);
+  }
+
+  /* =================== PINNED CUSTOM CVARS =================== */
+  (state.pins||[]).forEach(p=>{
+    if(!p.key) return;
+    const dumpDef = (window.CVARS_MAP && window.CVARS_MAP[p.key]);
+    add("Custom (pinned)", p.key, p.val, dumpDef!==undefined?`Dump default: ${dumpDef===''?'(empty)':dumpDef}`:'Not found in the 5.7.4 dump — check spelling.',
+        "User-pinned override.", {proj:p.scope==='project'});
+  });
+
+  return {out, warns, bads, est, pressure};
+}
+
+/* metadata for advanced overrides that may not be emitted by the scenario rules */
+const ADV_META={
+  'r.Nanite.MaxPixelsPerEdge':{group:'Nanite',desc:'Target triangle size in pixels (1 = full detail).'},
+  'r.Nanite.Streaming.StreamingPoolSize':{group:'Nanite',desc:'VRAM (MB) for streaming Nanite clusters.'},
+  'r.Nanite.ViewMeshLODBias.Offset':{group:'Nanite',desc:'Global Nanite LOD bias (negative = sharper).'},
+  'r.Shadow.Virtual.MaxPhysicalPages':{group:'Virtual Shadow Maps',desc:'VSM physical page-pool size.'},
+  'r.Shadow.Virtual.ResolutionLodBiasDirectional':{group:'Virtual Shadow Maps',desc:'Directional shadow resolution bias.'},
+  'r.Shadow.Virtual.SMRT.RayCountDirectional':{group:'Virtual Shadow Maps',desc:'Rays/pixel for soft directional shadows.'},
+  'r.Shadow.Virtual.SMRT.RayCountLocal':{group:'Virtual Shadow Maps',desc:'Rays/pixel for soft local shadows.'},
+  'r.Lumen.ScreenProbeGather.DownsampleFactor':{group:'Lumen',desc:'Final-gather probe spacing (lower = denser).'},
+  'r.Lumen.Reflections.DownsampleFactor':{group:'Lumen',desc:'Reflection trace resolution (1 = full).'},
+  'r.LumenScene.SurfaceCache.CardMaxResolution':{group:'Lumen',desc:'Surface-cache card max resolution.'},
+  'r.Lumen.ScreenProbeGather.Temporal.MaxFramesAccumulated':{group:'Lumen',desc:'GI temporal accumulation depth.'},
+  'r.Streaming.PoolSize':{group:'Textures',desc:'VRAM (MB) for streamed textures.'},
+  'r.Streaming.FullyLoadUsedTextures':{group:'Textures',desc:'Load full-res mips for visible textures.'},
+  'r.MipMapLODBias':{group:'Textures',desc:'Global mip LOD bias.'},
+  'r.VT.MaxAnisotropy':{group:'Textures',desc:'Max anisotropic filtering for virtual textures.'},
+  'r.Lumen.TranslucencyReflections.FrontLayer.Enable':{group:'Translucency',desc:'Lumen reflections on the nearest translucent layer.'},
+};
+
+/* ---------------- render plan ---------------- */
+let lastPlan=null;
+const GROUP_SCOPE={}; // group display order
+
+function render(){
+  DESC={};
+  const plan=buildPlan(); lastPlan=plan;
+  // memory bar
+  const pct=clamp(plan.est.total/state.memBudget*100,0,140);
+  const fill=document.getElementById('memFill');
+  fill.style.width=Math.min(pct,100)+'%';
+  fill.style.background = pct>100?'#e25555' : pct>85?'linear-gradient(90deg,#54b56a,#e0a020)' : 'linear-gradient(90deg,#54b56a,#e8a23d)';
+  document.getElementById('memText').textContent=`${Math.round(plan.est.total)} / ${state.memBudget} MB  (${Math.round(pct)}%)`;
+  const e=plan.est;
+  document.getElementById('memBreakdown').innerHTML=
+    `Base ${Math.round(e.base)} · Textures ${Math.round(e.tex)} · Nanite ${Math.round(e.nanite)} · VSM ${Math.round(e.vsm)} · Fog ${Math.round(e.vol)} · Lumen ${Math.round(e.lumen)} · DF ${Math.round(e.df)} · Clouds ${Math.round(e.cloud)} MB`;
+
+  // warnings
+  const wbox=document.getElementById('warnings'); wbox.innerHTML='';
+  if(plan.bads.length) wbox.innerHTML+=`<div class="warnbox bad"><b>⛔ Over budget</b><ul>${plan.bads.map(w=>`<li>${w}</li>`).join('')}</ul></div>`;
+  if(plan.warns.length) wbox.innerHTML+=`<div class="warnbox"><b>⚠ Anticipate</b><ul>${plan.warns.map(w=>`<li>${w}</li>`).join('')}</ul></div>`;
+
+  // split project vs runtime, then group
+  const filt=o=> !changedOnly || DEFAULTS[o.key]===undefined || DEFAULTS[o.key]!==o.val;
+  const proj=plan.out.filter(o=>o.proj && filt(o));
+  const runtime=plan.out.filter(o=>!o.proj && filt(o));
+  let html='';
+  html+=scopeBlock("project","Project settings — restart required","These define the renderer at build time. Put them in DefaultEngine.ini / Project Settings, not the live console.", proj);
+  html+=scopeBlock("runtime","Runtime / render-graph cvars","Safe to set live or via the MRQ console-variable job.", runtime);
+  document.getElementById('planTable').innerHTML=html;
+  document.getElementById('cvCount').textContent=`(${proj.length+runtime.length} shown · ${proj.length} project, ${runtime.length} runtime)`;
+  document.getElementById('outPre').textContent=outText('cmd');
+}
+
+function scopeBlock(scope,title,sub,items){
+  if(!items.length) return '';
+  const groups={}; items.forEach(o=>{(groups[o.group]=groups[o.group]||[]).push(o);});
+  let h=`<div class="section-head scope-${scope}"><div class="ico">${scope==='project'?'⚙':'▶'}</div>
+    <div><div class="t">${title} <span class="badge ${scope}">${scope}</span></div><div class="legend" style="margin:2px 0 0">${sub}</div></div>
+    <div class="meta">${items.length} cvars</div></div>`;
+  for(const g in groups){
+    h+=`<h3>${g}</h3><table><tbody>`;
+    groups[g].forEach(o=>{
+      const def=DEFAULTS[o.key];
+      const changed=def!==undefined && def!==o.val;
+      h+=`<tr>
+        <td><span class="cv-name">${o.key}</span></td>
+        <td><span class="cv-val ${changed?'changed':''}">${o.val||'<i>(empty)</i>'}</span></td>
+        <td><span class="cv-def">${def===undefined?'<i>n/a</i>':(def===''?'<i>empty</i>':def)}</span></td>
+        <td><span class="desc">${o.desc}</span><div class="why ${o.warn?'warn':''}">${o.why}${o.warn?` — ${o.warn}`:''}</div></td>
+      </tr>`;
+    });
+    h+='</tbody></table>';
+  }
+  return h;
+}
+/* table header row for plan tables */
+document.addEventListener('DOMContentLoaded',()=>{});
+
+function outText(fmt){
+  const items=lastPlan.out;
+  const proj=items.filter(o=>o.proj && !o.key.startsWith('MovieRenderPipeline'));
+  const run=items.filter(o=>!o.proj && !o.key.startsWith('MovieRenderPipeline'));
+  const mrq=items.filter(o=>o.key.startsWith('MovieRenderPipeline'));
+  if(fmt==='ini'){
+    let s='; ===== PROJECT (DefaultEngine.ini — needs editor restart) =====\n[/Script/Engine.RendererSettings]\n';
+    s+='; (set these in Project Settings UI; raw keys differ — listed for reference)\n'+proj.map(o=>`; ${o.key}=${o.val}`).join('\n');
+    s+='\n\n; ===== RUNTIME / RENDER-GRAPH (DefaultEngine.ini) =====\n[ConsoleVariables]\n'+run.map(o=>`${o.key}=${o.val}`).join('\n');
+    if(mrq.length) s+='\n\n; ===== MOVIE RENDER QUEUE (job console-variable setting) =====\n'+mrq.map(o=>`; ${o.key}=${o.val}`).join('\n');
+    return s;
+  }
+  let s='// ===== PROJECT (restart required) =====\n'+proj.map(o=>`${o.key} ${o.val}`).join('\n');
+  s+='\n\n// ===== RUNTIME / RENDER-GRAPH =====\n'+run.map(o=>`${o.key} ${o.val}`).join('\n');
+  if(mrq.length) s+='\n\n// ===== MOVIE RENDER QUEUE =====\n'+mrq.map(o=>`${o.key} ${o.val}`).join('\n');
+  return s;
+}
+function copyOut(fmt){ navigator.clipboard.writeText(outText(fmt)).then(()=>flash(fmt==='ini'?'Copied .ini':'Copied commands')); }
+function downloadTxt(){
+  const blob=new Blob([outText('cmd')],{type:'text/plain'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='render_preset.txt'; a.click();
+}
+
+/* ---------------- Movie Render Graph python export ---------------- */
+function safeName(s){ return (s||'Preset').replace(/[^A-Za-z0-9]/g,'') || 'Preset'; }
+function pythonScript(){
+  const items=lastPlan.out;
+  // runtime cvars (incl. MovieRenderPipeline.* which are console-settable) are applied live; project ones can't be.
+  const runtime=items.filter(o=>!o.proj);
+  const project=items.filter(o=>o.proj);
+  const pname=document.getElementById('presetName').value.trim();
+  const cls='RenderCVarOverrides_'+safeName(pname);
+  const NL='\n';
+  let s='';
+  s+='# ============================================================================'+NL;
+  s+='# Auto-generated by "Unreal Render — CVar Manager"'+NL;
+  s+='# Movie Render Graph -> "Execute Script" node (Script Class = '+cls+')'+NL;
+  s+='# Applies render CVars on job start and restores the editor\'s values on finish.'+NL;
+  if(pname) s+='# Preset: '+pname+NL;
+  s+='# Target engine: UE 5.7.4'+NL;
+  s+='# ============================================================================'+NL;
+  s+='import unreal'+NL+NL;
+  s+='# Runtime / render-graph CVars — applied live at job start, restored at job finish.'+NL;
+  s+='RENDER_CVARS = {'+NL;
+  runtime.forEach(o=>{ s+='    '+JSON.stringify(o.key)+': '+JSON.stringify(String(o.val))+',  # '+(o.desc||'').replace(/\n/g,' ')+NL; });
+  s+='}'+NL+NL;
+  if(project.length){
+    s+='# ----------------------------------------------------------------------------'+NL;
+    s+='# PROJECT settings below are read at engine startup and CANNOT be changed at'+NL;
+    s+='# render time. Set them in Project Settings / DefaultEngine.ini (then restart):'+NL;
+    project.forEach(o=>{ s+='#     '+o.key+' = '+o.val+NL; });
+    s+='# ----------------------------------------------------------------------------'+NL;
+  }
+  s+=NL;
+  s+='@unreal.uclass()'+NL;
+  s+='class '+cls+'(unreal.MovieGraphScriptBase):'+NL;
+  s+='    """Enforce render CVars for this job, then cleanly restore the editor."""'+NL+NL;
+  s+='    def _post_init(self):'+NL;
+  s+='        self._originals = {}'+NL+NL;
+  s+='    def _world(self):'+NL;
+  s+='        return unreal.EditorLevelLibrary.get_editor_world()'+NL+NL;
+  s+='    @unreal.ufunction(override=True)'+NL;
+  s+='    def on_job_start(self, in_job_copy):'+NL;
+  s+='        super().on_job_start(in_job_copy)'+NL;
+  s+='        world = self._world()'+NL;
+  s+='        self._originals = {}'+NL;
+  s+='        unreal.log("[RenderCVars] Applying %d CVars" % len(RENDER_CVARS))'+NL;
+  s+='        for name, value in RENDER_CVARS.items():'+NL;
+  s+='            try:'+NL;
+  s+='                self._originals[name] = unreal.SystemLibrary.get_console_variable_string_value(name)'+NL;
+  s+='            except Exception:'+NL;
+  s+='                self._originals[name] = None'+NL;
+  s+='            unreal.SystemLibrary.execute_console_command(world, "%s %s" % (name, value))'+NL;
+  s+='        unreal.log_warning("[RenderCVars] %d CVars enforced for render" % len(RENDER_CVARS))'+NL+NL;
+  s+='    @unreal.ufunction(override=True)'+NL;
+  s+='    def on_job_finished(self, in_job_copy, in_output_data):'+NL;
+  s+='        super().on_job_finished(in_job_copy, in_output_data)'+NL;
+  s+='        world = self._world()'+NL;
+  s+='        restored = 0'+NL;
+  s+='        for name, value in self._originals.items():'+NL;
+  s+='            if value is not None and value != "":'+NL;
+  s+='                unreal.SystemLibrary.execute_console_command(world, "%s %s" % (name, value))'+NL;
+  s+='                restored += 1'+NL;
+  s+='        unreal.log("[RenderCVars] Restored %d editor CVars" % restored)'+NL;
+  return s;
+}
+function downloadPy(){
+  const pname=document.getElementById('presetName').value.trim();
+  const blob=new Blob([pythonScript()],{type:'text/x-python'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='render_cvars_'+safeName(pname).toLowerCase()+'.py'; a.click();
+  flash('Exported .py');
+}
+function copyPy(){ navigator.clipboard.writeText(pythonScript()).then(()=>flash('Copied .py')); }
+function saveAndExport(){ savePreset(); downloadPy(); }
+function toggleChangedOnly(){ changedOnly=!changedOnly; document.getElementById('changedBtn').textContent=changedOnly?'Show all':'Changed only'; render(); }
+function flash(msg){ const el=document.getElementById('cvCount'); el.textContent=' ✓ '+msg; setTimeout(render,1100); }
+
+/* ---------------- controls ---------------- */
+function buildChips(containerId, obj, labels){
+  const c=document.getElementById(containerId); c.innerHTML='';
+  for(const k in obj){
+    const lab=document.createElement('label'); lab.className='chip'+(obj[k]?' on':'');
+    lab.innerHTML=`<input type="checkbox" ${obj[k]?'checked':''}><span class="dot"></span><span>${labels[k]}</span>`;
+    lab.querySelector('input').addEventListener('change',ev=>{ obj[k]=ev.target.checked; lab.classList.toggle('on',ev.target.checked); render(); });
+    c.appendChild(lab);
+  }
+}
+function seg(id,key){
+  document.querySelectorAll(`#${id} button`).forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll(`#${id} button`).forEach(x=>x.classList.remove('active'));
+    b.classList.add('active'); state[key]=b.dataset.v; render();
+  }));
+}
+
+/* ---------------- tuning sliders (shadow / lumen / voxel) ---------------- */
+const TUNING={
+  shadow:{container:'tune_shadow', rows:[
+    ['detail','Close-up detail','sun/local sharpness + near clipmap level'],
+    ['softness','Soft-shadow quality','penumbra ray count & samples per ray'],
+    ['distance','Large-scene range','far shadow clipmap distance'],
+  ]},
+  lumen:{container:'tune_lumen', rows:[
+    ['gather','Final gather','GI probe density, budget & trace resolution'],
+    ['reflection','Reflections','trace resolution & max roughness traced'],
+    ['stability','Temporal stability','GI accumulation frames (anti-flicker)'],
+  ]},
+  voxel:{container:'tune_voxel', rows:[
+    ['resolution','Voxel detail','Global SDF resolution + global DF mip'],
+    ['range','Voxel range','Global SDF world extent'],
+  ]},
+};
+function previewText(domain,k){
+  if(domain==='shadow'){ const m=shadowCvars(state.shadow);
+    if(k==='detail') return `bias ${m['r.Shadow.Virtual.ResolutionLodBiasDirectional']} · near L${m['r.Shadow.Virtual.Clipmap.FirstLevel']}`;
+    if(k==='softness') return `${m['r.Shadow.Virtual.SMRT.RayCountDirectional']} rays · ${m['r.Shadow.Virtual.SMRT.SamplesPerRayDirectional']} smp`;
+    if(k==='distance') return `to L${m['r.Shadow.Virtual.Clipmap.LastLevel']}`;
+  }
+  if(domain==='lumen'){ const m=lumenCvars(state.lumen);
+    if(k==='gather') return `DS ${m['r.Lumen.ScreenProbeGather.DownsampleFactor']} · ${m['r.Lumen.ScreenProbeGather.RadianceCache.NumProbesToTraceBudget']} probes`;
+    if(k==='reflection') return `${m['r.Lumen.Reflections.DownsampleFactor']===1?'full-res':'half-res'} · rough ${m['r.Lumen.Reflections.MaxRoughnessToTrace']}`;
+    if(k==='stability') return `${m['r.Lumen.ScreenProbeGather.Temporal.MaxFramesAccumulated']} frames`;
+  }
+  if(domain==='voxel'){ const m=voxelCvars(state.voxel);
+    if(k==='resolution') return `res ${m['r.LumenScene.GlobalSDF.Resolution']} · mip ${m['r.AOGlobalDistanceField.MipFactor']}`;
+    if(k==='range') return `${m['r.LumenScene.GlobalSDF.ClipmapExtent']} cm`;
+  }
+  return '';
+}
+function buildTuning(){
+  for(const domain in TUNING){
+    const cfg=TUNING[domain]; const box=document.getElementById(cfg.container); if(!box) continue;
+    box.innerHTML=cfg.rows.map(([k,label,sub])=>`
+      <div class="grp">
+        <div class="slider-head"><span>${label}</span><b id="tv_${domain}_${k}">${previewText(domain,k)}</b></div>
+        <input type="range" min="0" max="100" value="${state[domain][k]}" data-domain="${domain}" data-k="${k}">
+        <div class="legend">${sub}</div>
+      </div>`).join('');
+    box.querySelectorAll('input[type=range]').forEach(inp=>inp.addEventListener('input',e=>{
+      const d=e.target.dataset.domain, kk=e.target.dataset.k;
+      state[d][kk]=+e.target.value;
+      const el=document.getElementById('tv_'+d+'_'+kk); if(el) el.textContent=previewText(d,kk);
+      render();
+    }));
+  }
+}
+
+/* ---------------- advanced controls ---------------- */
+const ADV_CFG={
+  'Nanite':[
+    {k:'r.Nanite.MaxPixelsPerEdge', label:'Triangle detail', opts:[['Auto','auto'],['Max (1)','1'],['Balanced (2)','2'],['Fast (4)','4']]},
+    {k:'r.Nanite.Streaming.StreamingPoolSize', label:'Streaming pool MB', opts:[['Auto','auto'],['512','512'],['1024','1024'],['2048','2048'],['3072','3072'],['4096','4096']]},
+    {k:'r.Nanite.ViewMeshLODBias.Offset', label:'LOD bias offset', opts:[['Auto','auto'],['0','0'],['-1 sharper','-1'],['-2','-2'],['+1 faster','1']]},
+  ],
+  'Virtual Shadow Maps':[
+    {k:'r.Shadow.Virtual.MaxPhysicalPages', label:'Page pool', opts:[['Auto','auto'],['4096','4096'],['8192','8192'],['12288','12288'],['16384','16384'],['24576','24576'],['32768','32768']]},
+    {k:'r.Shadow.Virtual.ResolutionLodBiasDirectional', label:'Directional res bias', opts:[['Auto','auto'],['0','0'],['-1','-1'],['-1.5','-1.5'],['-2 sharp','-2'],['-2.5 sharper','-2.5']]},
+    {k:'r.Shadow.Virtual.SMRT.RayCountDirectional', label:'Sun ray count', opts:[['Auto','auto'],['4','4'],['8','8'],['16','16'],['32','32']]},
+    {k:'r.Shadow.Virtual.SMRT.RayCountLocal', label:'Local ray count', opts:[['Auto','auto'],['4','4'],['8','8'],['16','16'],['32','32']]},
+  ],
+  'Lumen':[
+    {k:'r.Lumen.ScreenProbeGather.DownsampleFactor', label:'Final gather', opts:[['Auto','auto'],['Cinematic (8)','8'],['High (16)','16'],['Fast (32)','32']]},
+    {k:'r.Lumen.Reflections.DownsampleFactor', label:'Reflections res', opts:[['Auto','auto'],['Full (1)','1'],['Half (2)','2']]},
+    {k:'r.LumenScene.SurfaceCache.CardMaxResolution', label:'Surface cache', opts:[['Auto','auto'],['512','512'],['1024','1024']]},
+    {k:'r.Lumen.ScreenProbeGather.Temporal.MaxFramesAccumulated', label:'GI temporal frames', opts:[['Auto','auto'],['4','4'],['8','8'],['16','16'],['32','32']]},
+  ],
+  'Textures':[
+    {k:'r.Streaming.PoolSize', label:'Texture pool MB', opts:[['Auto','auto'],['2048','2048'],['4096','4096'],['6144','6144'],['8192','8192']]},
+    {k:'r.Streaming.FullyLoadUsedTextures', label:'Fully load mips', opts:[['Auto','auto'],['On (no pop)','1'],['Off','0']]},
+    {k:'r.MipMapLODBias', label:'Mip LOD bias', opts:[['Auto','auto'],['0','0'],['-0.5 sharper','-0.5'],['-1','-1']]},
+    {k:'r.VT.MaxAnisotropy', label:'VT anisotropy', opts:[['Auto','auto'],['4','4'],['8','8'],['16','16']]},
+  ],
+  'Translucency':[
+    {k:'r.Lumen.TranslucencyReflections.FrontLayer.Enable', label:'Lumen glass reflections', opts:[['Auto','auto'],['On (glass)','1'],['Off','0']]},
+  ],
+};
+function buildAdv(){
+  const box=document.getElementById('advBox'); box.innerHTML='';
+  for(const sec in ADV_CFG){
+    const d=document.createElement('details');
+    let rows=ADV_CFG[sec].map(c=>{
+      const cur=(state.adv&&state.adv[c.k])||'auto';
+      const opts=c.opts.map(([l,v])=>`<option value="${v}" ${v===cur?'selected':''}>${l}</option>`).join('');
+      return `<div class="adv-row"><label title="${c.k}">${c.label}</label><select data-cvar="${c.k}">${opts}</select></div>`;
+    }).join('');
+    d.innerHTML=`<summary>${sec}</summary>${rows}`;
+    box.appendChild(d);
+  }
+  box.querySelectorAll('select[data-cvar]').forEach(sel=>sel.addEventListener('change',e=>{
+    const k=e.target.dataset.cvar, v=e.target.value;
+    state.adv=state.adv||{};
+    if(v==='auto') delete state.adv[k]; else state.adv[k]=v;
+    render();
+  }));
+}
+
+/* ---------------- pinned cvars ---------------- */
+function buildCvarDatalist(){
+  if(typeof window.CVARS==='undefined') return;
+  window.CVARS_MAP={}; window.CVARS.forEach(r=>window.CVARS_MAP[r.n]=r.v);
+  const dl=document.getElementById('cvarNames');
+  // limit list to render-relevant prefixes to keep it light
+  const names=window.CVARS.filter(r=>r.n.startsWith('r.')||r.n.startsWith('MovieRenderPipeline')||r.n.startsWith('Slate.')||r.n.startsWith('fx.'));
+  dl.innerHTML=names.slice(0,5000).map(r=>`<option value="${r.n}">`).join('');
+}
+function addPin(){
+  const key=document.getElementById('pinKey').value.trim();
+  const val=document.getElementById('pinVal').value.trim();
+  const scope=document.getElementById('pinScope').value;
+  if(!key){ alert('Enter a cvar name.'); return; }
+  state.pins=state.pins||[];
+  const ex=state.pins.find(p=>p.key===key);
+  if(ex){ ex.val=val; ex.scope=scope; } else state.pins.push({key,val,scope});
+  document.getElementById('pinKey').value=''; document.getElementById('pinVal').value='';
+  buildPinList(); render();
+}
+function removePin(key){ state.pins=(state.pins||[]).filter(p=>p.key!==key); buildPinList(); render(); }
+function buildPinList(){
+  const el=document.getElementById('pinList');
+  const pins=state.pins||[];
+  if(!pins.length){ el.innerHTML='<div class="muted" style="font-size:11px">No pinned cvars.</div>'; return; }
+  el.innerHTML=pins.map(p=>{
+    const known=window.CVARS_MAP && (p.key in window.CVARS_MAP);
+    return `<div class="pin-row"><span class="cv-name">${p.key}</span><span class="cv-val">${p.val||'<i>-</i>'}</span>
+      <span class="badge ${p.scope==='project'?'project':'runtime'}">${p.scope}</span>
+      ${known?'':'<span class="badge" style="background:rgba(226,85,85,.12);color:var(--bad);border:1px solid rgba(226,85,85,.4)">?</span>'}
+      <span class="pin-x" onclick="removePin('${p.key.replace(/'/g,"\\'")}')">✕</span></div>`;
+  }).join('');
+}
+const SCALE_LBL=['Tiny / product','Small interior','Medium','Large','Open world'];
+const QUAL_LBL=['Draft','Fast preview','Balanced','High','Final frame'];
+const lblFor=(arr,v)=>arr[Math.min(arr.length-1, Math.floor(v/100*arr.length))];
+
+function wireControls(){
+  buildChips('systems', state.systems, SYS_LABELS);
+  buildChips('content', state.content, CONTENT_LABELS);
+  buildTuning(); buildAdv(); buildPinList();
+  seg('giMode','giMode'); seg('aa','aa');
+  document.getElementById('sceneScale').oninput=e=>{state.sceneScale=+e.target.value;document.getElementById('scaleLbl').textContent=lblFor(SCALE_LBL,state.sceneScale);render();};
+  document.getElementById('quality').oninput=e=>{state.quality=+e.target.value;document.getElementById('qualLbl').textContent=lblFor(QUAL_LBL,state.quality);render();};
+  document.getElementById('memBudget').oninput=e=>{state.memBudget=+e.target.value;document.getElementById('memLbl').textContent=state.memBudget+' MB';render();};
+  document.getElementById('screenPct').oninput=e=>{state.screenPct=clamp(+e.target.value||100,33,200);render();};
+  const cin=document.getElementById('cinematic');
+  cin.onchange=e=>{state.cinematic=e.target.checked;document.getElementById('cinChip').classList.toggle('on',e.target.checked);render();};
+}
+function syncControls(){
+  // reflect state -> DOM (after load preset)
+  buildChips('systems', state.systems, SYS_LABELS);
+  buildChips('content', state.content, CONTENT_LABELS);
+  buildTuning(); buildAdv(); buildPinList();
+  document.querySelectorAll('#giMode button').forEach(b=>b.classList.toggle('active',b.dataset.v===state.giMode));
+  document.querySelectorAll('#aa button').forEach(b=>b.classList.toggle('active',b.dataset.v===state.aa));
+  document.getElementById('sceneScale').value=state.sceneScale;
+  document.getElementById('quality').value=state.quality;
+  document.getElementById('memBudget').value=state.memBudget;
+  document.getElementById('screenPct').value=state.screenPct;
+  document.getElementById('cinematic').checked=state.cinematic;
+  document.getElementById('cinChip').classList.toggle('on',state.cinematic);
+  document.getElementById('scaleLbl').textContent=lblFor(SCALE_LBL,state.sceneScale);
+  document.getElementById('qualLbl').textContent=lblFor(QUAL_LBL,state.quality);
+  document.getElementById('memLbl').textContent=state.memBudget+' MB';
+}
+
+/* ---------------- presets (localStorage) ---------------- */
+const PKEY='ue57_render_presets';
+function getPresets(){ try{return JSON.parse(localStorage.getItem(PKEY))||{};}catch(e){return {};} }
+function setPresets(p){ localStorage.setItem(PKEY,JSON.stringify(p)); }
+function refreshPresetList(sel){
+  const p=getPresets(); const list=document.getElementById('presetList');
+  const names=Object.keys(p).sort();
+  list.innerHTML='<option value="">— load preset —</option>'+names.map(n=>`<option ${n===sel?'selected':''}>${n}</option>`).join('');
+}
+function savePreset(){
+  const name=document.getElementById('presetName').value.trim();
+  if(!name){ alert('Enter a preset name first.'); return; }
+  const p=getPresets();
+  p[name]={state:structuredClone(state), notes:document.getElementById('notes').value, ts:Date.now()};
+  setPresets(p); refreshPresetList(name); flash('Saved “'+name+'”');
+}
+function loadPreset(){
+  const name=document.getElementById('presetList').value; if(!name) return;
+  const p=getPresets(); if(!p[name]) return;
+  state=structuredClone(p[name].state);
+  // backfill any new keys added since the preset was saved
+  for(const k in DEF_STATE.systems) if(!(k in state.systems)) state.systems[k]=DEF_STATE.systems[k];
+  if(!state.adv) state.adv={}; if(!state.pins) state.pins=[];
+  for(const d of ['shadow','lumen','voxel']){ if(!state[d]) state[d]=structuredClone(DEF_STATE[d]); }
+  document.getElementById('notes').value=p[name].notes||'';
+  document.getElementById('presetName').value=name;
+  syncControls(); render();
+}
+function deletePreset(){
+  const name=document.getElementById('presetList').value; if(!name) return;
+  if(!confirm('Delete preset “'+name+'”?')) return;
+  const p=getPresets(); delete p[name]; setPresets(p); refreshPresetList(); flash('Deleted');
+}
+function exportPresets(){
+  const blob=new Blob([JSON.stringify(getPresets(),null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='ue_render_presets.json'; a.click();
+}
+function importPresets(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{ const imp=JSON.parse(r.result); const p=getPresets(); Object.assign(p,imp); setPresets(p); refreshPresetList(); flash('Imported'); }catch(e){ alert('Invalid JSON'); } };
+  r.readAsText(f);
+}
+
+/* ---------------- tabs ---------------- */
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); t.classList.add('active');
+  const tab=t.dataset.tab;
+  document.getElementById('tab-plan').classList.toggle('hidden',tab!=='plan');
+  document.getElementById('tab-browse').classList.toggle('hidden',tab!=='browse');
+  if(tab==='browse') initBrowse();
+}));
+
+/* ---------------- browse ---------------- */
+const CATS=[
+  {name:'Lighting & GI', tests:['r.Lumen','r.LumenScene','r.DynamicGlobalIllumination','r.ReflectionMethod','r.RayTracing','r.SkyLight','r.DefaultFeature','r.SSGI','r.IndirectLighting']},
+  {name:'Shadows', tests:['r.Shadow','r.CapsuleShadow','r.ContactShadow','r.DFShadow']},
+  {name:'Atmosphere & Fog', tests:['r.SkyAtmosphere','r.VolumetricFog','r.VolumetricCloud','r.Fog','r.ExponentialHeightFog']},
+  {name:'Nanite & Geometry', tests:['r.Nanite','r.DistanceField','r.AOGlobalDistanceField','r.MeshStreaming','r.StaticMesh']},
+  {name:'Post Process', tests:['r.Bloom','r.DepthOfField','r.Tonemapper','r.MotionBlur','r.Eye','r.Exposure','r.LensFlare','r.SceneColorFringe','r.Film','r.Color','r.LocalExposure','r.AmbientOcclusion','r.GTAO']},
+  {name:'Anti-aliasing', tests:['r.TSR','r.TemporalAA','r.AntiAliasing','r.MSAA','r.FXAA','r.ScreenPercentage','r.Upscale']},
+  {name:'Textures & Streaming', tests:['r.Streaming','r.Texture','r.VT','r.MipMap','r.VirtualTexture']},
+  {name:'Reflections', tests:['r.SSR','r.Reflection','r.RayTracing.Reflections']},
+  {name:'Materials & Shaders', tests:['r.Material','r.Shaders','r.Substrate','r.Shader']},
+  {name:'Hair', tests:['r.HairStrands']},
+  {name:'Animation', tests:['a.','r.SkinCache','r.GPUSkin']},
+  {name:'FX / Niagara', tests:['fx.','r.Niagara','Niagara']},
+  {name:'Physics', tests:['p.']},
+];
+let activeCat=null;
+function catMatch(name){ if(!activeCat) return true; return activeCat.tests.some(t=>name.startsWith(t)); }
+let browseInit=false;
+function initBrowse(){
+  if(browseInit) return; browseInit=true;
+  const status=document.getElementById('browseStatus');
+  if(typeof window.CVARS==='undefined'){
+    status.innerHTML='⚠ <b>cvars-data.js not loaded.</b> Keep this file beside <span class="cv-name">cvars-data.js</span>. If your browser blocks local loads, serve the folder: <span class="cv-name">python -m http.server</span> then open via localhost.';
+    return;
+  }
+  // category bar
+  const bar=document.getElementById('catbar');
+  bar.innerHTML='<span class="cat on" data-i="-1">All r.*</span>'+CATS.map((c,i)=>`<span class="cat" data-i="${i}">${c.name}</span>`).join('');
+  bar.querySelectorAll('.cat').forEach(el=>el.addEventListener('click',()=>{
+    bar.querySelectorAll('.cat').forEach(x=>x.classList.remove('on')); el.classList.add('on');
+    const i=+el.dataset.i; activeCat = i<0?null:CATS[i]; doBrowse();
+  }));
+  // setby
+  const setbys={}; window.CVARS.forEach(r=>setbys[r.s]=(setbys[r.s]||0)+1);
+  const ssel=document.getElementById('setby');
+  ssel.innerHTML='<option value="">Any SetBy</option>'+Object.entries(setbys).sort((a,b)=>b[1]-a[1]).map(([s,n])=>`<option value="${s}">${s||'(blank)'} (${n})</option>`).join('');
+  ['input','change'].forEach(ev=>{ document.getElementById('search').addEventListener(ev,doBrowse); ssel.addEventListener(ev,doBrowse); });
+  doBrowse();
+}
+function doBrowse(){
+  const q=document.getElementById('search').value.trim().toLowerCase();
+  const sb=document.getElementById('setby').value;
+  // ensure DESC populated from a render
+  if(Object.keys(DESC).length===0) buildPlan();
+  let rows=window.CVARS.filter(r=>r.n.startsWith('r.')||r.n.startsWith('MovieRenderPipeline'));
+  rows=rows.filter(r=>catMatch(r.n));
+  if(sb) rows=rows.filter(r=>r.s===sb);
+  if(q) rows=rows.filter(r=>r.n.toLowerCase().includes(q));
+  const cap=rows.slice(0,900);
+  document.getElementById('browseCount').textContent=`${rows.length} match${rows.length===1?'':'es'}${rows.length>900?' (showing 900)':''}`;
+  document.getElementById('browseBody').innerHTML=cap.map(r=>{
+    const d=DESC[r.n];
+    return `<tr><td class="cv-name">${r.n}</td><td class="cv-def">${r.v===''?'<i class="muted">empty</i>':r.v}</td><td class="cv-def">${r.s}</td><td class="desc">${d?d:'<span class="muted">—</span>'}</td></tr>`;
+  }).join('');
+}
+
+/* ---------------- init ---------------- */
+wireControls();
+refreshPresetList();
+buildCvarDatalist();   // builds window.CVARS_MAP + autocomplete (if cvars-data.js loaded)
+buildPinList();
+render();
+</script>
+</body>
+</html>
